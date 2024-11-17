@@ -1,7 +1,5 @@
-from PIL import Image
 from utils import *
-import numpy as np
-import os
+from stitch import *
 from pipeline import *
 
 def service_model(filename):
@@ -52,3 +50,8 @@ def service_model(filename):
                 print(f'Encountered error {e} while cropping, continuing...')
 
     return meta_data_list
+
+def create_stitched_images(files):
+    stitched_image = stitch_images(files)
+    stitched_image = replace_black_with_majority_color(stitched_image)
+    cv2.imwrite('stitched.png', stitched_image)
