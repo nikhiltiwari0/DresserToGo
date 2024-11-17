@@ -138,7 +138,7 @@ async function testOAuth2Client() {
 
 // Main Workflow
 (async function main() {
-    const filePath = "../assets/3testPanda.jpg"; // Should take in image from user
+    const filePath = "../assets/man_standing.jpg"; // Should take in image from user
     const testImageId = "tAcyON2lwHhefbn82nKh"; //  test to see if imageID parser is working
   
     try {
