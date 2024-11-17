@@ -25,32 +25,18 @@ def check_file_exists(file_name):
         return False
 
 def upload_file(file_name, file_path, folder_id):
-    """Upload a file to Google Drive."""
-    try:
-        if not os.path.exists(file_path):
-            raise FileNotFoundError(f"The file at {file_path} does not exist.")
-        
-        file_metadata = {
-            'name': file_name,
-            'parents': [folder_id]  # Use the passed folder ID
-        }
-        media = MediaFileUpload(file_path, mimetype='image/jpeg')
-
-        print(f"Uploading file: {file_name} to folder: {folder_id}")  # Debugging
-        file = drive_service.files().create(
-            body=file_metadata,
-            media_body=media,
-            fields='id, name, webViewLink'
-        ).execute()
-
-        if not file:
-            raise ValueError("Drive API returned None for the created file.")
-
-        print(f"File uploaded successfully: {file}")
-        return file
-    except Exception as error:
-        print(f"Error during file upload: {error}")
-        raise error
+    """Upload a file to a specific Google Drive folder."""
+    file_metadata = {
+        'name': file_name,
+        'parents': [folder_id]
+    }
+    media = MediaFileUpload(file_path, mimetype='image/jpeg')
+    file = drive_service.files().create(
+        body=file_metadata,
+        media_body=media,
+        fields='id, webViewLink'
+    ).execute()
+    return file
 
 def list_files_in_folder(folder_id):
     """List all files in a Google Drive folder."""

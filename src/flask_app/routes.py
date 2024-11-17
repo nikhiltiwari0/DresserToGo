@@ -18,25 +18,21 @@ def upload_image():
     data = request.get_json()
     file_name = data.get("file_name")
     file_path = data.get("file_path")
+    folder_id = data.get("folder_id")
 
-    if not file_name or not file_path:
-        return jsonify({"error": "file_name and file_path are required"}), 400
+    if not file_name or not file_path or not folder_id:
+        return jsonify({"error": "file_name, file_path, and folder_id are required"}), 400
 
     try:
-        uploaded_file = upload_file(file_name, file_path)
+        uploaded_file = upload_file(file_name, file_path, folder_id)
         if not uploaded_file:
             return jsonify({"error": "Failed to upload file to Google Drive"}), 500
 
-        save_metadata_to_firestore(uploaded_file)
         return jsonify({
-            "message": "File uploaded and metadata saved successfully",
+            "message": "File uploaded successfully",
             "file_id": uploaded_file.get("id"),
             "public_url": uploaded_file.get("webViewLink", "No URL available")
         }), 200
-    except FileNotFoundError as fnf_error:
-        return jsonify({"error": str(fnf_error)}), 400
-    except HttpError as http_error:
-        return jsonify({"error": f"Google Drive API error: {http_error}"}), 500
     except Exception as error:
         return jsonify({"error": str(error)}), 500
 
@@ -91,77 +87,116 @@ def fetch_file_metadata(file_id):
 @routes.route("/ai/process", methods=["POST"])
 def process_file_with_ai():
     """
-    Download a file from Google Drive by its ID, process it with AI, 
-    and return the results.
+    Process files in the downloads folder based on their last character
+    and upload them to their respective folders in Google Drive.
     """
     data = request.get_json()
-    file_id = data.get("file_id")
+    folder_mapping = {
+        "0": "1OavV3D6tBao6KG13QjPQH4r3PI5TSv3A",  # Head
+        "1": "16BKpECjxVN_N7HTtQJoaqQkCKnjmH1zz",  # Top
+        "2": "1IDRD1B5mVN-Oo6HimMsM49zWlCbI1Wnu",  # Pants
+        "3": "10iDngJ1k7MZw4yIJifHeJ158XIZp5M0R",  # Shoes
+    }
 
-    if not file_id:
-        return jsonify({"error": "file_id is required"}), 400
-
-    try:
-        # Fetch file metadata and download the file
-        file_name = f"{file_id}.jpg"
-        downloaded_file_path = download_file(file_id, file_name)
-
-        # Pass the downloaded file to the AI model
-        results = service_model(downloaded_file_path)
-
-        # Optionally, clean up the downloaded file after processing
-        if os.path.exists(downloaded_file_path):
-            os.remove(downloaded_file_path)
-
-        return jsonify({
-            "message": "Image processed successfully",
-            "results": results
-        }), 200
-    except FileNotFoundError as fnf_error:
-        return jsonify({"error": str(fnf_error)}), 400
-    except HttpError as http_error:
-        return jsonify({"error": f"Google Drive API error: {http_error}"}), 500
-    except Exception as error:
-        return jsonify({"error": str(error)}), 500
-    
-@routes.route("/process_and_upload", methods=["POST"])
-def process_and_upload():
-    """
-    Process a local image using AI, generate new images, and upload them
-    to their respective folders in Google Drive.
-    """
-    data = request.get_json()
-    file_path = data.get("/assets/man_s tanding")  # Path to the image on your computer
-
-    if not file_path or not os.path.exists(file_path):
-        return jsonify({"error": "Valid file_path is required"}), 400
+    downloads_dir = "downloads"
 
     try:
-        # Run the AI processing (generate cropped images)
-        results = service_model(file_path)
-
-        # Upload each generated image to its corresponding folder
         uploaded_files = []
-        for result in results:
-            cropped_file_name = result["file_name"]
-            folder_id = result["folder_id"]
 
-            # Upload the file to Google Drive
-            uploaded_file = upload_file(cropped_file_name, cropped_file_name, folder_id)
+        # Iterate over files in the downloads folder
+        for file_name in os.listdir(downloads_dir):
+            file_path = os.path.join(downloads_dir, file_name)
 
-            # Save metadata of uploaded files
+            # Ensure it's a valid file
+            if not os.path.isfile(file_path):
+                continue
+
+            # Extract the last character before the file extension
+            last_char = os.path.splitext(file_name)[0][-1]
+
+            # Determine the folder ID based on the last character
+            folder_id = folder_mapping.get(last_char)
+            if not folder_id:
+                print(f"Invalid classification for file {file_name}. Skipping.")
+                continue
+
+            # Upload the file to the correct Google Drive folder
+            uploaded_file = upload_file(
+                file_name=file_name,
+                file_path=file_path,
+                folder_id=folder_id
+            )
+            print(f"Uploaded file: {uploaded_file}")
+
+            # Add to the list of uploaded files
             uploaded_files.append({
-                "file_name": cropped_file_name,
+                "file_name": file_name,
                 "folder_id": folder_id,
                 "file_id": uploaded_file.get("id"),
                 "webViewLink": uploaded_file.get("webViewLink", "No URL available")
             })
 
-            # Optionally, clean up local cropped images after upload
-            if os.path.exists(cropped_file_name):
-                os.remove(cropped_file_name)
+            # Delete the file locally after upload
+            if os.path.exists(file_path):
+                os.remove(file_path)
 
         return jsonify({
-            "message": "Images processed and uploaded successfully",
+            "message": "Files processed and uploaded successfully",
+            "uploaded_files": uploaded_files
+        }), 200
+
+    except Exception as error:
+        print(f"Error processing files: {error}")
+        return jsonify({"error": str(error)}), 500
+    
+
+@routes.route("/ai/process_and_upload", methods=["POST"])
+def process_file_with_ai_and_upload():
+    """
+    Process files in the 'downloads' directory and upload each file to 
+    a specified Google Drive folder based on its key in the data.
+    """
+    try:
+        data = request.get_json()
+
+        if not data or 'folder_mappings' not in data:
+            return jsonify({"error": "Invalid input. 'folder_mappings' required"}), 400
+
+        folder_mappings = data["folder_mappings"]  # Expected to be a dict of file_name -> folder_id
+
+        # Get list of files in the 'downloads' directory
+        downloads_path = "downloads"
+        if not os.path.exists(downloads_path):
+            return jsonify({"error": f"Directory '{downloads_path}' not found"}), 400
+
+        files = [f for f in os.listdir(downloads_path) if os.path.isfile(os.path.join(downloads_path, f))]
+
+        if not files:
+            return jsonify({"error": "No files found in the 'downloads' directory"}), 400
+
+        uploaded_files = []
+        for file_name in files:
+            full_path = os.path.join(downloads_path, file_name)
+            folder_id = folder_mappings.get(file_name)
+
+            if not folder_id:
+                print(f"Skipping {file_name}: No folder ID provided in 'folder_mappings'")
+                continue
+
+            # Upload the file to the specified folder
+            uploaded_file = upload_file(file_name, full_path, folder_id)
+            uploaded_files.append({
+                "file_name": file_name,
+                "folder_id": folder_id,
+                "file_id": uploaded_file.get("id"),
+                "webViewLink": uploaded_file.get("webViewLink", "No URL available")
+            })
+
+            # Delete the local file after upload
+            os.remove(full_path)
+
+        return jsonify({
+            "message": "Files processed, uploaded, and cleaned up successfully",
             "uploaded_files": uploaded_files
         }), 200
 
