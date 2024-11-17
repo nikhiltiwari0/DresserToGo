@@ -19,10 +19,13 @@ def save_metadata_to_firestore(file_metadata):
         doc_ref.set({
             "fileName": file_metadata["name"],
             "fileId": file_id,
-            "publicUrl": public_url,  # Save constructed Google Drive link
+            "publicUrl": public_url,  # Google Drive link
             "uploadedAt": datetime.utcnow(),
             "beenParsed": False,
             "isLiked": False,
+            "clothingType": "",
+            "length": 0,
+            "width": 0
         })
         print(f"Metadata saved successfully for file: {file_metadata['name']}")
     except Exception as e:
