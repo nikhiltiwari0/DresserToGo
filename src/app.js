@@ -57,7 +57,7 @@ async function goToModel(imageId) {
 
 const drive = google.drive({ version: "v3", auth: oauth2Client });
 
-// Function to upload a file to Google Drive and place it in the FULL Folder
+// Function to upload a file to Google Drive and place it in the FULL Folder 
 async function uploadFileToDrive(filePath) {
     try {
       const fileName = filePath.split("/").pop();
