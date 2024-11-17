@@ -24,7 +24,7 @@ def upload_image():
         save_metadata_to_firestore(uploaded_file)
         return jsonify({"message": "File uploaded and metadata saved successfully", "file_id": uploaded_file["id"]}), 200
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": str(e)}), 500 
 
 @routes.route("/like/<image_id>", methods=["POST"])
 def like_unlike_image(image_id):
