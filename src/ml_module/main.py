@@ -12,6 +12,7 @@ DRIVE_FOLDERS = {
     "HEAD": "1OavV3D6tBao6KG13QjPQH4r3PI5TSv3A",
     "PANTS": "1IDRD1B5mVN-Oo6HimMsM49zWlCbI1Wnu",
     "TOP": "16BKpECjxVN_N7HTtQJoaqQkCKnjmH1zz",
+    "OTHER": "1otherFolderIDHere"  # Default folder for unclassified images
 }
 
 
@@ -19,8 +20,8 @@ def service_model(filename, is_full_image=False):
     image = cv2.imread(filename, cv2.IMREAD_COLOR)
 
     if is_full_image:
-        # Upload the full image to the 'full_image' folder
-        folder_id = DRIVE_FOLDERS["full_image"]
+        # Upload the full image to the "FULL" folder
+        folder_id = DRIVE_FOLDERS["FULL"]
         upload_file(filename, filename, folder_id)
         return {"message": "Full image uploaded successfully"}
 
@@ -39,7 +40,7 @@ def service_model(filename, is_full_image=False):
     # Correct the proportions of the detections
     corrected_predictions = correct_clothing_bounding_boxes(human.values(), final_predictions)
 
-    # Existing logic to process the image...
+    # Process the image and upload cropped parts
     meta_data_list = []
     for i, key in enumerate(corrected_predictions.keys()):
         if corrected_predictions[key] is None:
@@ -51,13 +52,17 @@ def service_model(filename, is_full_image=False):
 
             xmin, ymin, xmax, ymax = corrected_predictions[key]['box'].values()
 
+            # Crop and save the image
             cropped_image = image[ymin:ymax, xmin:xmax, :]
             cropped_file_name = filename[:-4] + f"_{i}.jpg"
             cv2.imwrite(cropped_file_name, cropped_image)
 
-            # Add folder destination based on clothing type
-            clothing_type = corrected_predictions[key]['label']
-            folder_id = FOLDER_IDS.get(clothing_type, FOLDER_IDS["full"])
+            # Determine folder based on clothing type
+            clothing_type = corrected_predictions[key]['label'].upper()
+            folder_id = DRIVE_FOLDERS.get(clothing_type, DRIVE_FOLDERS["OTHER"])
+
+            # Upload the cropped image to Google Drive
+            upload_file(cropped_file_name, cropped_file_name, folder_id)
 
             # Save the metadata
             meta_data_list.append({
@@ -71,4 +76,4 @@ def service_model(filename, is_full_image=False):
         except Exception as e:
             print(f'Encountered error {e} while cropping, continuing...')
 
-    return meta_data_list
+    return {"message": "Images processed and uploaded successfully", "results": meta_data_list}

@@ -2,7 +2,7 @@ from flask import Blueprint, request, jsonify
 from .firestore_utils import like_image, check_if_image_parsed, save_metadata_to_firestore
 from .drive_utils import upload_file, get_file_metadata, list_files_in_folder, download_file
 from googleapiclient.errors import HttpError
-from src.ml_module.main import service_model  # Import the AI function
+from src.ml_module.main import DRIVE_FOLDERS, service_model  # Import the AI function
 import os
 
 routes = Blueprint("routes", __name__)
@@ -125,26 +125,43 @@ def process_file_with_ai():
     
 @routes.route("/process_and_upload", methods=["POST"])
 def process_and_upload():
+    """
+    Process a local image using AI, generate new images, and upload them
+    to their respective folders in Google Drive.
+    """
     data = request.get_json()
-    file_name = data.get("file_name")
-    file_path = data.get("file_path")
+    file_path = data.get("/assets/man_s tanding")  # Path to the image on your computer
 
-    if not file_name or not file_path:
-        return jsonify({"error": "file_name and file_path are required"}), 400
+    if not file_path or not os.path.exists(file_path):
+        return jsonify({"error": "Valid file_path is required"}), 400
 
     try:
-        # Run the AI processing
+        # Run the AI processing (generate cropped images)
         results = service_model(file_path)
 
+        # Upload each generated image to its corresponding folder
         uploaded_files = []
         for result in results:
-            folder_id = result["folder_id"]
             cropped_file_name = result["file_name"]
+            folder_id = result["folder_id"]
+
+            # Upload the file to Google Drive
             uploaded_file = upload_file(cropped_file_name, cropped_file_name, folder_id)
-            uploaded_files.append(uploaded_file)
+
+            # Save metadata of uploaded files
+            uploaded_files.append({
+                "file_name": cropped_file_name,
+                "folder_id": folder_id,
+                "file_id": uploaded_file.get("id"),
+                "webViewLink": uploaded_file.get("webViewLink", "No URL available")
+            })
+
+            # Optionally, clean up local cropped images after upload
+            if os.path.exists(cropped_file_name):
+                os.remove(cropped_file_name)
 
         return jsonify({
-            "message": "Files processed and uploaded successfully",
+            "message": "Images processed and uploaded successfully",
             "uploaded_files": uploaded_files
         }), 200
 
