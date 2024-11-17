@@ -44,7 +44,6 @@ def upload_file(file_name, file_path):
         print(f"Error during upload: {error}")  # Debug output
         return None
     
-
 def list_files_in_folder(folder_id):
     """List all files in a Google Drive folder."""
     try:

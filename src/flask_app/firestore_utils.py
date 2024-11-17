@@ -11,10 +11,15 @@ def save_metadata_to_firestore(file_metadata):
     try:
         print(f"Saving metadata to Firestore: {file_metadata}")
         doc_ref = db.collection("Images").document()
+        
+        # Construct Google Drive public URL
+        file_id = file_metadata["id"]
+        public_url = f"https://drive.google.com/file/d/{file_id}/view"
+        
         doc_ref.set({
             "fileName": file_metadata["name"],
-            "fileId": file_metadata["id"],
-            "publicUrl": file_metadata.get("webViewLink", "No URL available"),
+            "fileId": file_id,
+            "publicUrl": public_url,  # Save constructed Google Drive link
             "uploadedAt": datetime.utcnow(),
             "beenParsed": False,
             "isLiked": False,
