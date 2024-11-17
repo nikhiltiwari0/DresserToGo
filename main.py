@@ -18,7 +18,6 @@ def service_model(filename):
 
     # Generate for each category and select the highest
     final_predictions = finalize_predictions(preds)
-    print(final_predictions)
 
     # Correct the proportions of the detections
     corrected_predictions = correct_clothing_bounding_boxes(human.values(), final_predictions)
@@ -39,7 +38,7 @@ def service_model(filename):
 
                 # Save the image using OpenCV
                 cropped_image = image[ymin:ymax, xmin:xmax, :]
-                cv2.imwrite(filename  + f"_{i}" + ".jpg", cropped_image)
+                cv2.imwrite(filename[:-4]  + f"_{i}" + ".jpg", cropped_image)
 
                 # Save the metadata
                 meta_data_list.append({

@@ -89,7 +89,6 @@ def finalize_predictions(preds, threshold=0.7):
     
     if selected['pants'] is not None and selected['body'] is not None:
         overlap_iou = iou(selected['body']['box'], selected['pants']['box'])
-        print(overlap_iou)
         selected['pants'] = None if overlap_iou > 0.5 else selected['pants']
 
     return selected
