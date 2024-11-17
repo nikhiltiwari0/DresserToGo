@@ -47,4 +47,4 @@ po/*~
 
 src/.env
 
-service-account.jsoncredentials/service-account.json
+downloads/service-account.jsoncredentials/service-account.json
