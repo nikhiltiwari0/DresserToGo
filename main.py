@@ -1,6 +1,9 @@
 from utils import *
 from stitch import *
 from pipeline import *
+# Load model directly
+from transformers import AutoImageProcessor, AutoModel
+import torch
 
 def service_model(filename):
     image = cv2.imread(filename, cv2.IMREAD_COLOR)
@@ -55,3 +58,18 @@ def create_stitched_images(files):
     stitched_image = stitch_images(files)
     stitched_image = replace_black_with_majority_color(stitched_image)
     cv2.imwrite('stitched.png', stitched_image)
+
+class SimiliaritySearcher:
+    def __init__(self, model_dir="abhishek/autotrain_fashion_mnist_vit_base"):
+        self.processor = AutoImageProcessor.from_pretrained(model_dir)
+        self.model = AutoModel.from_pretrained(model_dir)
+
+    def extract_embeddings(self, image):
+        with torch.no_grad():
+            embeddings = self.model(**image).last_hidden_state[:, 0].detach()
+
+        return embeddings
+    
+    def compute_similarity(self, emb1, emb2):
+        scores = torch.nn.functional.cosine_similarity(emb1, emb2)
+        return scores.numpy().tolist()
