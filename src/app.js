@@ -34,6 +34,24 @@ oauth2Client.setCredentials({
   refresh_token: REFRESH_TOKEN,
 });
 
+// function to like an image and unlike an image
+async function likeImage(imageId) {
+  const imageRef = db.collection("Images").doc(imageId);
+  const doc = await imageRef.get();
+  if (!doc.exists) {
+    console.log("No such document!");
+    return;
+  } else {
+    const data = doc.data();
+    if (data.isLiked) {
+      await imageRef.update({ isLiked: false });
+      console.log("Image unliked");
+    } else {
+      await imageRef.update({ isLiked: true });
+      console.log("Image liked");
+    }
+  }
+}
 
 // Check if image has gone through the model.
 
@@ -98,6 +116,7 @@ async function saveToFirestore(fileMetadata) {
       publicUrl: fileMetadata.webViewLink,
       uploadedAt: admin.firestore.FieldValue.serverTimestamp(),
       beenParsed: false,
+      isLiked: false,
     });
 
     console.log(`File metadata saved to Firestore: ${fileMetadata.name}`);
@@ -119,7 +138,7 @@ async function testOAuth2Client() {
 
 // Main Workflow
 (async function main() {
-    const filePath = "../assets/testPanda.jpg"; // Should take in image from user
+    const filePath = "../assets/2testPanda.jpg"; // Should take in image from user
     const testImageId = "tAcyON2lwHhefbn82nKh"; //  test to see if imageID parser is working
   
     try {

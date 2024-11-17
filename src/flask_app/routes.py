@@ -1,45 +1,43 @@
-from flask import Blueprint, jsonify, request
-from src.flask_app.drive_utils import check_file_exists, list_files_in_folder, upload_file
+from flask import Blueprint, request, jsonify
+from .firestore_utils import like_image, check_if_image_parsed, save_metadata_to_firestore
+from .drive_utils import upload_file
 
-# Blueprint for routes
-routes = Blueprint('routes', __name__)
+routes = Blueprint("routes", __name__)
 
-@routes.route('/', methods=['GET'])
+@routes.route("/", methods=["GET"])
 def home():
-    return "Welcome to the Flask API. Use the `/check` endpoint with POST requests."
+    return jsonify({
+        "message": "Welcome to the Flask API. Use `/upload` to upload images and `/like` to like/unlike an image."
+    })
 
-@routes.route('/check', methods=['GET', 'POST'])
-def check_and_upload():
-    list_files_in_folder('1H66qHlVz4idI-gMPVZi79hf7SGu6h_lD')
-    if request.method == 'GET':
-        return jsonify({
-            "message": "This endpoint only accepts POST requests.",
-            "example_payload": {
-                "file_name": "example.jpg",
-                "file_path": "path/to/your/file.jpg"
-            }
-        }), 405
-
-    file_name = request.json.get('file_name')
-    file_path = request.json.get('file_path')
+@routes.route("/upload", methods=["POST"])
+def upload_image():
+    data = request.get_json()
+    file_name = data.get("file_name")
+    file_path = data.get("file_path")
 
     if not file_name or not file_path:
         return jsonify({"error": "file_name and file_path are required"}), 400
 
-    print(f"Received file_name: {file_name}, file_path: {file_path}")  # Debug log
-
-    if check_file_exists(file_name):
-        print("File already exists on Drive.")  # Debug log
-        return jsonify({"message": "File already exists"}), 400
-    else:
-        print("File does not exist. Uploading...")  # Debug log
+    try:
         uploaded_file = upload_file(file_name, file_path)
-        if uploaded_file:
-            print(f"File uploaded successfully: {uploaded_file}")  # Debug log
-            return jsonify({
-                "message": "File uploaded successfully",
-                "file_id": uploaded_file.get('id')
-            }), 200
-        else:
-            print("File upload failed.")  # Debug log
-            return jsonify({"error": "File upload failed"}), 500
+        save_metadata_to_firestore(uploaded_file)
+        return jsonify({"message": "File uploaded and metadata saved successfully", "file_id": uploaded_file["id"]}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@routes.route("/like/<image_id>", methods=["POST"])
+def like_unlike_image(image_id):
+    try:
+        message = like_image(image_id)
+        return jsonify({"message": message}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@routes.route("/check/<image_id>", methods=["GET"])
+def check_parsed(image_id):
+    try:
+        parsed = check_if_image_parsed(image_id)
+        return jsonify({"image_id": image_id, "been_parsed": parsed}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
